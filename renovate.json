@@ -50,41 +50,17 @@
   ],
   "packageRules": [
     {
-      "matchManagers": "maven",
-      "enabled": false
-    },
-    {
-      "matchManagers": "github-actions",
-      "enabled": false
-    },
-    {
-      "matchManagers": "dockerfile",
-      "enabled": false
-    },
-    {
-      "matchManagers": "gradle-wrapper",
-      "enabled": false
-    },
-    {
-      "matchManagers": "npm",
-      "enabled": false
-    },
-    {
-      "matchManagers": "gradle",
-      "matchUpdateTypes": [
-        "patch",
-        "minor"
-      ],
-      "enabled": true,
-      "groupName": "Minor Backend Dependencies"
-    },
-    {
-      "matchManagers": "gradle",
-      "matchUpdateTypes": [
-        "major"
-      ],
-      "enabled": true,
-      "groupName": "Major Backend Dependencies"
+      "enabled": false,
+      "matchPackageNames": [
+        "*"
+      ]
     }
-  ]
+  ],
+  "osvVulnerabilityAlerts": true,
+  "vulnerabilityAlerts": {
+    "vulnerabilityFixStrategy": "lowest",
+    "labels": ["security"],
+    "automerge": true,
+    "assignees": ["@kycheng"]
+  }
 }

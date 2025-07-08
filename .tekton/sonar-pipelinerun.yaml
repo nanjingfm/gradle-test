@@ -1,0 +1,115 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: sonarqube-build
+  annotations:
+    pipelinesascode.tekton.dev/on-comment: "^((/sonarqube)|(/test-all))$"
+    pipelinesascode.tekton.dev/on-cel-expression: |-
+      ((
+        "image/community-build/**".pathChanged() ||
+        ".tekton/sonar-pipelinerun.yaml".pathChanged()
+      ) && (
+        event == "push" && (
+          source_branch.matches("^(alauda-.*)$") ||
+          target_branch.startsWith("refs/tags/")
+        )
+      ) || (
+        event == "pull_request" && (
+          target_branch.matches("^(alauda-.*)$")
+        )
+      ))
+    pipelinesascode.tekton.dev/max-keep-runs: "5"
+spec:
+  pipelineRef:
+    resolver: hub
+    params:
+    - name: catalog
+      value: alauda
+    - name: type
+      value: tekton
+    - name: kind
+      value: pipeline
+    - name: name
+      value: clone-image-build-test-scan
+    - name: version
+      value: "0.2"
+
+  params:
+    - name: reuse-artifacts
+      value: true
+    - name: tag-template
+      value: "v2025.1.0-g${ShortSha}"
+    - name: git-url
+      value: "{{ repo_url }}"
+    - name: git-revision
+      value: "{{ source_branch }}"
+    - name: git-commit
+      value: "{{ revision }}"
+
+    - name: image-repository
+      value: build-harbor.alauda.cn/devops/sonarqube
+
+    - name: context
+      value: image/community-build/
+
+    - name: dockerfile-path
+      value: image/community-build/Dockerfile
+
+    - name: file-list-for-commit-sha
+      value:
+        - image/community-build/
+
+    ## Some JAR files in the SonarQube installation package contain application vulnerabilities. Currently there are no new versions available.
+    ## Need to wait for the community to release new versions before upgrading. Therefore, temporarily skip trivy scanning.
+    - name: ignore-trivy-scan
+      value: true
+    - name: ignore-gitversion-tag
+      value: true
+
+    # - name: test-script
+    #   value: |
+    #     echo skip
+    - name: upstreams
+      value:
+        - |
+          repo-url: https://github.com/AlaudaDevops/helm-chart-sonarqube.git
+          branch-name: {{ source_branch }}
+          yaml-file-path: charts/sonarqube/values.yaml
+    - name: upstream-branch-condition
+      value: "^(main|master|release.*|alauda.*)$"
+    - name: upstream-secret
+      value: github-credentials
+
+  workspaces:
+    - name: source
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteMany
+          resources:
+            requests:
+              storage: 1Gi
+    - name: dockerconfig
+      secret:
+        secretName: build-harbor.kauto.docfj
+    # This secret will be replaced by the pac controller
+    - name: basic-auth
+      secret:
+        secretName: "{{ git_auth_secret }}"
+    - name: gitversion-config
+      configMap:
+        name: gitversion-config
+  taskRunSpecs:
+    - pipelineTaskName: build-image
+      computeResources:
+        limits:
+          cpu: "6"
+          memory: 6Gi
+  taskRunTemplate:
+    # 让所有任务都以非 root 用户运行。
+    podTemplate:
+      securityContext:
+        runAsUser: 65532
+        runAsGroup: 65532
+        fsGroup: 65532
+        fsGroupChangePolicy: "OnRootMismatch"
