@@ -38,7 +38,7 @@ RUN DISTRO="$(lsb_release -s -c)" \
     nodejs="$NODE_MAJOR".* \
     jq \
     expect \
-    atlassian-plugin-sdk \
+    # atlassian-plugin-sdk \
     temurin-8-jdk \
     xmlstarlet \
   && apt-get clean \
